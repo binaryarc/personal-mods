@@ -11,7 +11,7 @@
 공개 저장소라 GitHub 로그인 없이 받을 수 있다. Claude Code 터미널 프롬프트에서 아래 한 줄을 친다.
 
 ```
-/plugin install task-progress@personal-mods --marketplace binaryarc/personal-mods
+/plugin install task-progress --marketplace binaryarc/personal-mods
 ```
 
 마켓플레이스 추가를 물으면 `y`, 범위는 user 를 고른다. 설치하면 바로 켜진다.
