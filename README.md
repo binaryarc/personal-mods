@@ -8,8 +8,7 @@
 
 ## 설치
 
-비공개 저장소라 git 으로 GitHub 에 로그인된 PC 에서만 받을 수 있다(`gh auth login` 후 `gh auth setup-git`).
-Claude Code 터미널 프롬프트에서 아래 한 줄을 친다.
+공개 저장소라 GitHub 로그인 없이 받을 수 있다. Claude Code 터미널 프롬프트에서 아래 한 줄을 친다.
 
 ```
 /plugin install task-progress@personal-mods --marketplace binaryarc/personal-mods
