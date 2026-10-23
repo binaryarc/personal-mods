@@ -21,7 +21,10 @@ export type Progress = {
 
 /** 사용자가 보낸 현재 요청. 이벤트로 자동 기록한다 */
 export type Request = {
+  /** 사용자가 보낸 원문 첫 줄. 해석에 실패했을 때만 보인다 */
   text: string
+  /** 모델이 요청을 해석해 한 줄로 적은 것. undefined 는 해석 중, null 은 해석 실패 */
+  summary?: string | null
   startedAt: number
   endedAt: number | null
 }

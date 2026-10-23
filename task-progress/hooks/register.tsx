@@ -106,6 +106,32 @@ export function fileNotice(path: string): string {
   ].join(' ')
 }
 
+// 현재 요청을 해석할 모델과 입력 길이 상한
+const SUMMARY_MODEL = 'haiku'
+const SUMMARY_INPUT_MAX = 2000
+
+// 사용자 요청을 해석해 한 줄로 적게 하는 질문. 요청 원문은 태그로 감싸 지시와 분리한다
+export function summaryPrompt(text: string): string {
+  return [
+    '아래 <request> 는 사용자가 코딩 도우미에게 보낸 요청이다. 사용자가 실제로 무엇을 원하는지 해석해 한국어 한 문장으로 적어라.',
+    '원문을 그대로 옮기지 말고, 오타와 줄임말을 바로잡아 할 일이 드러나게 쓴다. 40자 안팎, "~하기" 나 "~ 확인" 처럼 명사형으로 끝낸다.',
+    '답은 그 문장 하나만 쓴다. 따옴표, 머리말, 설명을 붙이지 않는다.',
+    `<request>\n${text.slice(0, SUMMARY_INPUT_MAX)}\n</request>`,
+  ].join('\n')
+}
+
+// 모델 답에서 첫 줄만 쓰고 감싼 따옴표를 뗀다. 비었으면 null
+export function cleanSummary(reply: string): string | null {
+  const line = oneLine(reply, 200).replace(/^["'“‘`]+|["'”’`]+$/g, '').trim()
+  return line === '' ? null : line
+}
+
+// 창에 보일 현재 요청 문구: 해석한 문장, 해석 중이면 안내, 실패했으면 원문
+export function requestLabel(req: Request): string {
+  if (typeof req.summary === 'string') return req.summary
+  return req.summary === null ? req.text : '요청 해석 중…'
+}
+
 // 도구 호출이 백그라운드로 돌았는지. 에이전트는 호출 인자에 run_in_background 가 없어
 // agent.spawn 이 알려 준 값(spawned)으로, 셸 명령은 호출 인자로 판단한다
 export function ranInBackground(isAgent: boolean, args: Record<string, unknown>, spawned: ReadonlySet<string>, id: string): boolean {
@@ -215,8 +241,18 @@ export const register: Register = on => {
         )
       }
     } else if (e.text.trim() !== '' && !e.text.trimStart().startsWith('<')) {
-      await update($, request, () => ({ text: oneLine(e.text, 80), startedAt: t, endedAt: null }))
+      await update($, request, () => ({ text: oneLine(e.text, 80), summary: undefined, startedAt: t, endedAt: null }))
       await update($, jobs, list => trimJobs(list))
+      // 요청 해석은 기다리지 않는다. 메시지 전송을 늦추지 않고, 답이 오면 창만 다시 그린다
+      void $.model
+        .complete({ model: SUMMARY_MODEL, prompt: summaryPrompt(e.text), maxTokens: 200, effort: 'low', timeoutMs: 15000 })
+        .then(r => (r.isAnswered ? cleanSummary(r.text) : null))
+        .catch(() => null)
+        .then(summary =>
+          // 그 사이 새 요청이 들어왔으면 옛 답은 버린다
+          update($, request, r => (r && r.startedAt === t ? { ...r, summary } : r)),
+        )
+        .catch(() => undefined)
       // 사용자 메시지마다 이 세션의 진행 파일 경로를 붙인다.
       // 시스템 프롬프트 절(prompt.compose)은 Claude 에게 보이지 않아 쓰지 않는다(2026-10-12 확인)
       const ctx = fileNotice(progressFile(dir, await $.session.id()))
@@ -341,7 +377,7 @@ export const register: Register = on => {
         {req ? (
           <Box flexDirection="column">
             <Text dimColor={req.endedAt !== null}>
-              {req.endedAt === null ? '▶' : '✔'} {oneLine(req.text, textMax)}
+              {req.endedAt === null ? '▶' : '✔'} {oneLine(requestLabel(req), textMax)}
             </Text>
             <Text dimColor>
               {'  '}

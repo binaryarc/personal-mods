@@ -29,6 +29,7 @@ claude plugin update task-progress@right-panel-mods
 ## task-progress 동작
 
 - 현재 요청, 서브에이전트, 백그라운드 명령은 모드가 자동으로 표시한다.
+- 현재 요청은 원문 대신 haiku 모델이 요청을 해석해 한 줄로 적은 문장을 보여준다. 해석은 메시지 전송을 기다리게 하지 않고, 실패하면 원문 첫 줄을 보여준다. 요청마다 haiku 호출 1회가 사용량에 더해진다.
 - 단계별 진행률은 Claude 가 `{사용자 폴더}/.claude/task-progress/{세션ID}.json` 을 써야 보인다. 쓰는 법은 모드가 사용자 메시지마다 붙이는 안내문에 들어 있어 CLAUDE.md 를 따로 고치지 않아도 된다.
 - 7일 지난 다른 세션 파일과 `/clear` 로 끝난 세션 파일은 모드가 지운다. 파일 삭제는 Windows PowerShell 로 하므로 Windows 가 아닌 PC 에서는 삭제만 동작하지 않는다.
 

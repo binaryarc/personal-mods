@@ -2,6 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import {
   bar,
+  cleanSummary,
   clearedFile,
   fmtElapsed,
   fmtSec,
@@ -13,7 +14,9 @@ import {
   fileNotice,
   ranInBackground,
   remainingSec,
+  requestLabel,
   showFile,
+  summaryPrompt,
   staleFiles,
   TTL_MS,
   trimJobs,
@@ -117,4 +120,22 @@ test('/clear 로 끝난 세션만 그 파일을 지운다', () => {
   expect(clearedFile('clear', 'abc')).toBe('abc.json')
   expect(clearedFile('prompt_input_exit', 'abc')).toBe(null)
   expect(clearedFile('resume', 'abc')).toBe(null)
+})
+
+test('요청 해석 질문: 원문은 request 태그 안에, 길면 자른다', () => {
+  const p = summaryPrompt('오른쪽 패널 이름 바꿔줘')
+  expect(p.includes('<request>\n오른쪽 패널 이름 바꿔줘\n</request>')).toBe(true)
+  expect(summaryPrompt('가'.repeat(5000)).includes('가'.repeat(2001))).toBe(false)
+})
+
+test('해석 답 정리: 첫 줄만, 따옴표 제거, 비면 null', () => {
+  expect(cleanSummary('"플러그인 이름 변경하기"\n부연')).toBe('플러그인 이름 변경하기')
+  expect(cleanSummary('  \n ')).toBe(null)
+})
+
+test('창 문구: 해석 문장, 해석 중, 실패 시 원문', () => {
+  const base = { text: '원문', startedAt: 0, endedAt: null }
+  expect(requestLabel({ ...base, summary: '해석 문장' })).toBe('해석 문장')
+  expect(requestLabel({ ...base })).toBe('요청 해석 중…')
+  expect(requestLabel({ ...base, summary: null })).toBe('원문')
 })
