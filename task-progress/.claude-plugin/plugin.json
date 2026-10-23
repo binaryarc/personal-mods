@@ -1,6 +1,6 @@
 {
   "name": "task-progress",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "진행 중인 작업의 진행률, 예상 남은 시간과 다음 작업을 오른쪽 창에 보여준다",
   "author": {
     "name": "binaryarc"

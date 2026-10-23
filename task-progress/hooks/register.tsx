@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { Job, Progress, Request, Task } from '../types'
+import type { Failure, Job, Progress, Request, Task } from '../types'
 
 // 진행 상황 파일 폴더. 세션마다 {세션ID}.json 하나를 Claude 가 적는다(선택)
 // PC 마다 사용자 폴더가 달라 session.start 에서 환경변수로 정한다
@@ -10,6 +10,7 @@ const PANE = 'task-progress'
 const TITLE = '작업 진행'
 const POLL_MS = 2000
 const KEEP_DONE_JOBS = 5
+const KEEP_FAILURES = 5
 // 세션별 진행 파일 보관 기간. 마지막 수정 뒤 이 기간이 지나면 다음 세션 시작 때 지운다
 export const TTL_MS = 7 * 24 * 60 * 60 * 1000
 const POWERSHELL = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe'
@@ -20,6 +21,7 @@ const now = atom({ plugin: 'task-progress', key: 'now' } as const, 0)
 const error = atom({ plugin: 'task-progress', key: 'error' } as const, null)
 const request = atom({ plugin: 'task-progress', key: 'request' } as const, null)
 const jobs = atom({ plugin: 'task-progress', key: 'jobs' } as const, [])
+const failures = atom({ plugin: 'task-progress', key: 'failures' } as const, [])
 
 export function percentOf(t: Task): number {
   if (typeof t.percent === 'number') return Math.max(0, Math.min(100, t.percent))
@@ -80,6 +82,19 @@ export function trimJobs(list: Job[]): Job[] {
   const running = list.filter(j => j.endedAt === null)
   const done = list.filter(j => j.endedAt !== null).slice(-KEEP_DONE_JOBS)
   return [...done, ...running]
+}
+
+// 오류 문구에서 보일 한 줄. 첫 줄이 "Exit code 1" 뿐이면 그 다음 줄이 원인이라 그 줄을 쓴다
+export function errorLine(text: string): string {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '')
+  return lines.find(l => !/^Exit code -?\d+$/.test(l)) ?? lines[0] ?? ''
+}
+
+// 실패한 명령을 더한다. 같은 명령이면 횟수만 올리고, 최근에 실패한 몇 개만 남긴다
+export function addFailure(list: Failure[], f: Omit<Failure, 'count'>): Failure[] {
+  const prev = list.find(x => x.command === f.command)
+  const rest = list.filter(x => x.command !== f.command)
+  return [...rest, { ...f, count: (prev?.count ?? 0) + 1 }].slice(-KEEP_FAILURES)
 }
 
 // 진행 상황 파일 폴더. Windows 는 USERPROFILE, 그 밖은 HOME 아래 .claude/task-progress
@@ -243,6 +258,7 @@ export const register: Register = on => {
     } else if (e.text.trim() !== '' && !e.text.trimStart().startsWith('<')) {
       await update($, request, () => ({ text: oneLine(e.text, 80), summary: undefined, startedAt: t, endedAt: null }))
       await update($, jobs, list => trimJobs(list))
+      await update($, failures, () => [])
       // 요청 해석은 기다리지 않는다. 메시지 전송을 늦추지 않고, 답이 오면 창만 다시 그린다
       void $.model
         .complete({ model: SUMMARY_MODEL, prompt: summaryPrompt(e.text), maxTokens: 200, effort: 'low', timeoutMs: 15000 })
@@ -274,13 +290,24 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // 서브에이전트(전경, 백그라운드)와 백그라운드 셸 명령
+  // 서브에이전트(전경, 백그라운드)와 백그라운드 셸 명령, 실패한 셸 명령
   on('tool.call', async ($, e, next) => {
     if (e.agentId) return next(e)
     const args = e as unknown as Record<string, unknown>
     const isAgent = e.tool === 'Agent'
     const isShell = e.tool === 'Bash' || e.tool === 'PowerShell'
-    if (!isAgent && !(isShell && args.run_in_background === true)) return next(e)
+    if (isShell && args.run_in_background !== true) {
+      const ran = await next(e)
+      if ('isError' in ran && ran.isError === true) {
+        const command = typeof args.command === 'string' ? args.command : ''
+        const label = typeof args.description === 'string' && args.description ? args.description : oneLine(command, 80)
+        const at = await $.clock.now()
+        const error = errorLine(typeof ran.text === 'string' ? ran.text : '')
+        await update($, failures, list => addFailure(list, { command, label, lastAt: at, error }))
+      }
+      return ran
+    }
+    if (!isAgent && !isShell) return next(e)
 
     const t = await $.clock.now()
     const id = e.tool_use_id ?? `${e.tool}-${t}`
@@ -315,6 +342,8 @@ export const register: Register = on => {
     const nowMs = await read($, now)
     const req = await read($, request)
     const list = await read($, jobs)
+    const fails = await read($, failures)
+    const failTotal = fails.reduce((s, f) => s + f.count, 0)
     const width = Math.max(6, Math.min(20, (e.props.bodyColumns ?? 40) - 22))
     const textMax = Math.max(20, (e.props.bodyColumns ?? 40) - 4)
 
@@ -388,6 +417,22 @@ export const register: Register = on => {
           </Box>
         ) : (
           <Text dimColor>아직 없음</Text>
+        )}
+
+        {/* 실패한 명령은 있을 때만 보인다. 같은 명령이 여러 번 실패하면 횟수가 오른다 */}
+        {fails.length > 0 && (
+          <Box flexDirection="column">
+            <Text> </Text>
+            <Text bold color="error">실패한 명령 {failTotal}회</Text>
+            {fails.map(f => (
+              <Box flexDirection="column">
+                <Text color={f.count > 1 ? 'error' : undefined}>
+                  ✘ {f.count}회 {oneLine(f.label, textMax - 6)}
+                </Text>
+                {f.error && <Text dimColor>{'  '}{oneLine(f.error, textMax - 2)}</Text>}
+              </Box>
+            ))}
+          </Box>
         )}
 
         <Text> </Text>

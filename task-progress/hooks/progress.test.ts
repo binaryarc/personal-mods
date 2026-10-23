@@ -1,9 +1,11 @@
 import { expect, test } from 'claude-code/testing'
 
 import {
+  addFailure,
   bar,
   cleanSummary,
   clearedFile,
+  errorLine,
   fmtElapsed,
   fmtSec,
   oneLine,
@@ -138,4 +140,20 @@ test('창 문구: 해석 문장, 해석 중, 실패 시 원문', () => {
   expect(requestLabel({ ...base, summary: '해석 문장' })).toBe('해석 문장')
   expect(requestLabel({ ...base })).toBe('요청 해석 중…')
   expect(requestLabel({ ...base, summary: null })).toBe('원문')
+})
+
+test('오류 한 줄: Exit code 줄은 건너뛰고 원인 줄을 쓴다', () => {
+  expect(errorLine('Exit code 1\n\ngrep: x: No such file')).toBe('grep: x: No such file')
+  expect(errorLine('Exit code 2')).toBe('Exit code 2')
+  expect(errorLine('')).toBe('')
+})
+
+test('실패한 명령: 같은 명령은 횟수를 올리고 최근 5개만 남긴다', () => {
+  const f = (command: string, at: number) => ({ command, label: command, lastAt: at, error: 'e' })
+  let list = addFailure([], f('a', 1))
+  list = addFailure(list, f('b', 2))
+  list = addFailure(list, f('a', 3))
+  expect(list.map(x => `${x.command}${x.count}`)).toEqual(['b1', 'a2'])
+  for (const c of ['c', 'd', 'e', 'g']) list = addFailure(list, f(c, 4))
+  expect(list.map(x => x.command)).toEqual(['a', 'c', 'd', 'e', 'g'])
 })

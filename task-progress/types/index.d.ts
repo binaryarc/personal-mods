@@ -40,6 +40,18 @@ export type Job = {
   result: string | null
 }
 
+/** 이번 요청에서 실패한 셸 명령. 같은 명령은 한 줄로 묶어 횟수를 센다 */
+export type Failure = {
+  /** 실행한 명령 원문. 같은 명령인지 가르는 기준 */
+  command: string
+  /** 창에 보일 이름. 도구 호출의 description, 없으면 명령 첫 줄 */
+  label: string
+  count: number
+  lastAt: number
+  /** 마지막 실패의 오류 한 줄 */
+  error: string
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'task-progress': {
@@ -50,6 +62,7 @@ declare module 'claude-code' {
       error: string | null
       request: Request | null
       jobs: Job[]
+      failures: Failure[]
     }
   }
 }
