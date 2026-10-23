@@ -1,6 +1,6 @@
-# personal-mods
+# right-panel-mods
 
-개인용 Claude Code 모드 마켓플레이스다.
+Claude Code 오른쪽 패널 모드 마켓플레이스다.
 
 | No. | 모드 | 하는 일 |
 |---|---|---|
@@ -11,7 +11,7 @@
 공개 저장소라 GitHub 로그인 없이 받을 수 있다. Claude Code 터미널 프롬프트에서 아래 한 줄을 친다.
 
 ```
-/plugin install task-progress --marketplace binaryarc/personal-mods
+/plugin install task-progress --marketplace binaryarc/right-panel-mods
 ```
 
 마켓플레이스 추가를 물으면 `y`, 범위는 user 를 고른다. 설치하면 바로 켜진다.
@@ -22,8 +22,8 @@
 저장소에 새 버전을 푸시한 뒤 각 PC 에서 아래를 실행하고, 열린 세션에서는 `/reload-plugins` 를 친다.
 
 ```
-claude plugin marketplace update personal-mods
-claude plugin update task-progress@personal-mods
+claude plugin marketplace update right-panel-mods
+claude plugin update task-progress@right-panel-mods
 ```
 
 ## task-progress 동작

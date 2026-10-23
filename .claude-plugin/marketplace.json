@@ -1,6 +1,6 @@
 {
-  "name": "personal-mods",
-  "description": "개인용 Claude Code 모드 모음",
+  "name": "right-panel-mods",
+  "description": "Claude Code 오른쪽 패널 모드 모음",
   "owner": {
     "name": "binaryarc"
   },
