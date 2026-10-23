@@ -8,7 +8,7 @@
     {
       "name": "task-progress",
       "source": "./task-progress",
-      "description": "진행 중인 작업의 진행률, 예상 남은 시간과 다음 작업을 오른쪽 창에 보여준다 (개인 파일럿)"
+      "description": "진행 중인 작업의 진행률, 예상 남은 시간과 다음 작업을 오른쪽 창에 보여준다"
     }
   ]
 }

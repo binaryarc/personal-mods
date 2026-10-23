@@ -6,6 +6,7 @@ import {
   cleanSummary,
   clearedFile,
   errorLine,
+  firstLine,
   fmtElapsed,
   fmtSec,
   oneLine,
@@ -47,6 +48,7 @@ test('표시 형식', () => {
   expect(fmtElapsed(3_725_000)).toBe('1:02:05')
   expect(oneLine('\n  첫 줄입니다\n둘째 줄', 80)).toBe('첫 줄입니다')
   expect(oneLine('가나다라마바사', 5)).toBe('가나다라…')
+  expect(firstLine(`\n  ${'가'.repeat(200)}\n둘째 줄`)).toBe('가'.repeat(200))
 })
 
 test('완료 알림에서 tool_use_id 와 상태를 뽑는다', () => {

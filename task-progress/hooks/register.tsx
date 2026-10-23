@@ -59,8 +59,12 @@ export function bar(p: number, width: number): string {
   return '█'.repeat(full) + '░'.repeat(width - full)
 }
 
+export function firstLine(text: string): string {
+  return (text.split('\n').find(l => l.trim() !== '') ?? '').trim()
+}
+
 export function oneLine(text: string, max: number): string {
-  const line = (text.split('\n').find(l => l.trim() !== '') ?? '').trim()
+  const line = firstLine(text)
   return line.length > max ? `${line.slice(0, max - 1)}…` : line
 }
 
@@ -256,7 +260,7 @@ export const register: Register = on => {
         )
       }
     } else if (e.text.trim() !== '' && !e.text.trimStart().startsWith('<')) {
-      await update($, request, () => ({ text: oneLine(e.text, 80), summary: undefined, startedAt: t, endedAt: null }))
+      await update($, request, () => ({ text: firstLine(e.text), summary: undefined, startedAt: t, endedAt: null }))
       await update($, jobs, list => trimJobs(list))
       await update($, failures, () => [])
       // 요청 해석은 기다리지 않는다. 메시지 전송을 늦추지 않고, 답이 오면 창만 다시 그린다
@@ -405,8 +409,9 @@ export const register: Register = on => {
         <Text bold>현재 요청</Text>
         {req ? (
           <Box flexDirection="column">
-            <Text dimColor={req.endedAt !== null}>
-              {req.endedAt === null ? '▶' : '✔'} {oneLine(requestLabel(req), textMax)}
+            {/* 현재 요청은 자르지 않고 창 폭에서 줄을 바꿔 전부 보여준다 */}
+            <Text dimColor={req.endedAt !== null} wrap="wrap">
+              {req.endedAt === null ? '▶' : '✔'} {firstLine(requestLabel(req))}
             </Text>
             <Text dimColor>
               {'  '}
